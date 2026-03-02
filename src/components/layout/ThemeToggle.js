@@ -32,7 +32,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="px-3 py-1 text-sm rounded bg-gray-200 dark:bg-gray-700"
+      className="theme-toggle"
     >
       {theme === "dark" ? "Light" : "Dark"}
     </button>

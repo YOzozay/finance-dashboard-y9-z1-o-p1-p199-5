@@ -10,11 +10,13 @@ export default function BottomNav() {
     { href: "/", label: "Home" },
     { href: "/worklog", label: "OT" },
     { href: "/expenses", label: "Expense" },
+    { href: "/debt", label: "Debt" },
+    { href: "/credit", label: "Credit"},
     { href: "/fixed", label: "Fixed" },
   ];
 
   return (
-    <div className="bg-white dark:bg-[#111827] border-t border-gray-200 dark:border-gray-800">
+    <div className="bg-[var(--color-bg-nav)] border-t border-[var(--color-border-nav)]">
       <div className="flex justify-around py-3 text-sm">
         {items.map(item => {
           const active = pathname === item.href;
@@ -24,8 +26,8 @@ export default function BottomNav() {
               href={item.href}
               className={`transition-colors ${
                 active
-                  ? "text-blue-600 dark:text-blue-400"
-                  : "text-gray-600 dark:text-gray-400"
+                  ? "text-[var(--color-primary-active)]"
+                  : "text-[var(--color-text-muted)]"
               }`}
             >
               {item.label}

@@ -1,4 +1,254 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================================
+   DESIGN TOKENS — CSS Custom Properties
+   Light mode defaults; dark mode overrides via .dark class
+   ============================================================ */
+
+:root {
+  /* --- Background --- */
+  --color-bg-page:        #f3f4f6; /* gray-100 */
+  --color-bg-surface:     #ffffff; /* white — card, form, table */
+  --color-bg-input:       #ffffff; /* white */
+  --color-bg-input-muted: #f3f4f6; /* gray-100 — select, thead */
+  --color-bg-nav:         #ffffff; /* white — sidebar, bottom nav */
+  --color-bg-muted:       #374151; /* gray-700 — used for hover/thead dark */
+
+  /* --- Text --- */
+  --color-text-primary:   #111827; /* gray-900 */
+  --color-text-secondary: #374151; /* gray-700 */
+  --color-text-muted:     #6b7280; /* gray-500 */
+  --color-text-subtle:    #9ca3af; /* gray-400 */
+  --color-text-on-dark:   #f3f4f6; /* gray-100 */
+
+  /* --- Border --- */
+  --color-border:         #e5e7eb; /* gray-200 */
+  --color-border-input:   #d1d5db; /* gray-300 */
+  --color-border-nav:     #e5e7eb; /* gray-200 */
+
+  /* --- Brand / Primary --- */
+  --color-primary:        #2563eb; /* blue-600 */
+  --color-primary-hover:  #1d4ed8; /* blue-700 */
+  --color-primary-active: #60a5fa; /* blue-400 — active nav on dark */
+  --color-accent:         #4f46e5; /* indigo-600 — gradient end */
+
+  /* --- Status --- */
+  --color-success:        #22c55e; /* green-500 */
+  --color-warning:        #eab308; /* yellow-500 */
+  --color-danger:         #ef4444; /* red-500 */
+  --color-danger-hover:   #f87171; /* red-400 */
+  --color-danger-bg:      #ef444419; /* red-500/10 */
+  --color-disabled:       #9ca3af; /* gray-400 */
+
+  /* --- Progress bar track --- */
+  --color-progress-track: #d1d5db; /* gray-300 */
+
+  /* --- Shadow --- */
+  --shadow-card:          0 1px 3px 0 rgb(0 0 0 / .10),
+                          0 1px 2px -1px rgb(0 0 0 / .10);
+}
+
+/* ---- Dark mode overrides ---- */
+.dark {
+  --color-bg-page:        #0f172a; /* slate-900 */
+  --color-bg-surface:     #1f2937; /* gray-800 */
+  --color-bg-input:       #1e293b; /* slate-800 */
+  --color-bg-input-muted: #374151; /* gray-700 */
+  --color-bg-nav:         #111827; /* gray-900 */
+
+  --color-text-primary:   #f3f4f6; /* gray-100 */
+  --color-text-secondary: #e5e7eb; /* gray-200 */
+  --color-text-muted:     #9ca3af; /* gray-400 */
+  --color-text-subtle:    #9ca3af; /* gray-400 */
+  --color-text-on-dark:   #f3f4f6;
+
+  --color-border:         #1f2937; /* gray-800 */
+  --color-border-input:   #374151; /* gray-700 */
+  --color-border-nav:     #1f2937; /* gray-800 */
+
+  --color-primary-active: #60a5fa; /* blue-400 */
+  --color-progress-track: #374151; /* gray-700 */
+}
+
+/* ============================================================
+   COMPONENT LAYER — reusable utility classes
+   ============================================================ */
+
+@layer components {
+
+  /* ---- Card / Surface ---- */
+  .card {
+    background-color: var(--color-bg-surface);
+    padding: 1.5rem;          /* p-6 */
+    border-radius: 0.75rem;   /* rounded-xl */
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-overflow {
+    background-color: var(--color-bg-surface);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+
+  /* ---- Form card (grid wrapper) ---- */
+  .form-card {
+    background-color: var(--color-bg-surface);
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* ---- Input / Select / Textarea ---- */
+  .input-base {
+    width: 100%;
+    padding: 0.5rem 1rem;       /* py-2 px-4 */
+    border-radius: 0.5rem;      /* rounded-lg */
+    border: 1px solid var(--color-border-input);
+    background-color: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+  .input-base:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+
+  .select-base {
+    border-radius: 0.25rem;     /* rounded */
+    border: 1px solid var(--color-border-input);
+    background-color: var(--color-bg-input-muted);
+    color: var(--color-text-primary);
+    padding: 0.5rem 0.75rem;    /* py-2 px-3 */
+    font-size: 0.875rem;        /* text-sm */
+  }
+  .select-base:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+
+  /* ---- Buttons ---- */
+  .btn-primary {
+    background-color: var(--color-primary);
+    color: #ffffff;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;     /* rounded-xl */
+    transition: background-color 150ms;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+  }
+
+  .btn-primary-sm {
+    background-color: var(--color-primary);
+    color: #ffffff;
+    padding: 0.25rem 1rem;      /* py-1 px-4 */
+    border-radius: 0.25rem;     /* rounded */
+    transition: background-color 150ms;
+  }
+  .btn-primary-sm:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+  }
+  .btn-primary-sm:disabled {
+    background-color: var(--color-disabled);
+  }
+
+  .btn-submit {
+    background-color: var(--color-primary);
+    color: #ffffff;
+    width: 100%;
+    padding: 0.5rem 0;          /* py-2 */
+    border-radius: 0.25rem;     /* rounded */
+    transition: background-color 150ms;
+  }
+  .btn-submit:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+  }
+  .btn-submit:disabled {
+    background-color: var(--color-disabled);
+  }
+
+  .btn-danger {
+    color: var(--color-danger);
+    transition: color 150ms;
+  }
+  .btn-danger:hover:not(:disabled) {
+    color: var(--color-danger-hover);
+  }
+  .btn-danger:disabled {
+    color: var(--color-disabled);
+  }
+
+  /* ---- Error banner ---- */
+  .error-banner {
+    background-color: var(--color-danger-bg);
+    border: 1px solid var(--color-danger);
+    color: var(--color-danger-hover);
+    padding: 0.75rem 1rem;      /* py-3 px-4 */
+    border-radius: 0.25rem;     /* rounded */
+  }
+
+  /* ---- Table ---- */
+  .table-head {
+    background-color: var(--color-bg-input-muted);
+    color: var(--color-text-secondary);
+  }
+
+  .table-row {
+    border-top: 1px solid var(--color-border);
+    transition: background-color 150ms;
+  }
+  .table-row:hover {
+    background-color: var(--color-bg-input-muted);
+  }
+
+  .table-footer {
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* ---- Nav link ---- */
+  .nav-link-active {
+    background-image: linear-gradient(to right, var(--color-primary), var(--color-accent));
+    color: #ffffff;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / .10), 0 2px 4px -2px rgb(0 0 0 / .10);
+  }
+
+  .nav-link-inactive:hover {
+    background-color: var(--color-bg-input-muted);
+  }
+
+  /* ---- Theme toggle ---- */
+  .theme-toggle {
+    background-color: var(--color-bg-input-muted);
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+  }
+
+  /* ---- Text helpers ---- */
+  .text-muted {
+    color: var(--color-text-muted);
+  }
+
+  .text-subtle {
+    color: var(--color-text-subtle);
+  }
+
+  /* ---- Progress bar ---- */
+  .progress-track {
+    width: 100%;
+    height: 0.5rem;             /* h-2 */
+    border-radius: 9999px;      /* rounded */
+    background-color: var(--color-progress-track);
+  }
+
+  .progress-fill {
+    height: 0.5rem;
+    border-radius: 9999px;
+  }
+}

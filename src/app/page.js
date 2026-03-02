@@ -1,102 +1,111 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE } from "@/config/api";
+import { apiGet } from "@/config/api";
 import { getCurrentPayMonth } from "@/lib/date";
-import Input from "@/components/ui/Input";
 import { formatMoney } from "@/lib/format";
+import { calculateDashboardMetrics } from "@/lib/dashboard";
 
 export default function DashboardPage() {
-
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
   const [payMonth, setPayMonth] = useState(getCurrentPayMonth());
+  const [summary, setSummary] = useState(null);
+  const [debts, setDebts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    async function load() {
+      setLoading(true);
 
-    setData(null);
-    setError(null);
-
-    fetch(`${API_BASE}?action=summary&payMonth=${payMonth}`)
-      .then(res => {
-        if (!res.ok) throw new Error("Failed to fetch");
-        return res.json();
-      })
-      .then(json => {
-        if (json.error) throw new Error(json.error);
-        setData(json);
-      })
-      .catch(err => {
-        console.error(err);
-        setError("Cannot load data");
+      const summaryData = await apiGet({
+        action: "summary",
+        payMonth
       });
 
+      const debtData = await apiGet({
+        action: "getDebts"
+      });
+
+      setSummary(summaryData);
+      setDebts(debtData);
+      setLoading(false);
+    }
+
+    load();
   }, [payMonth]);
 
-  if (error) {
-    return <div className="p-6 text-red-500">{error}</div>;
+  if (loading || !summary) {
+    return <div className="page-container">Loading...</div>;
   }
 
-  if (!data) {
-    return <div className="p-6">Loading...</div>;
-  }
+  const metrics = calculateDashboardMetrics(summary, debts);
+
+  const burnColor =
+    metrics.burnRatePercent > 80
+      ? "var(--color-danger)"
+      : metrics.burnRatePercent > 50
+      ? "var(--color-warning)"
+      : "var(--color-success)";
 
   return (
-    <div className="space-y-6">
+    <div className="page-container space-y-8">
 
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
-      <div className="max-w-xs">
-        <Input
-          type="month"
-          value={payMonth}
-          onChange={(e) => setPayMonth(e.target.value)}
-        />
+      {/* ===== KPI SECTION ===== */}
+      <div className="grid md:grid-cols-3 gap-6">
+
+        <StatCard title="Net Income" value={formatMoney(metrics.netIncome)} />
+        <StatCard title="Total Expenses" value={formatMoney(metrics.totalExpenses)} />
+        <StatCard title="Net Balance" value={formatMoney(metrics.netBalance)} />
+
+        <StatCard title="Debt Remaining" value={formatMoney(metrics.totalDebtRemaining)} />
+        <StatCard title="Monthly Obligation" value={formatMoney(metrics.monthlyObligation)} />
+        <StatCard title="OT Contribution" value={`${metrics.otContributionPercent.toFixed(1)}%`} />
+
       </div>
 
-      {/* Top Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card title="Gross Income" value={data?.income?.grossIncome ?? 0} />
-        <Card title="Net Income" value={data?.netIncome ?? 0} />
-        <Card title="Net Balance" value={data?.netBalance ?? 0} />
-      </div>
-
-      {/* Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow">
-          <h2 className="font-bold mb-4">Income Breakdown</h2>
-          <ul className="space-y-2 text-sm">
-            <li>Salary: {formatMoney(data?.income?.monthlySalary ?? 0)}</li>
-            <li>OT Pay: {formatMoney(data?.income?.otPay ?? 0)}</li>
-            <li>Meal Normal: {formatMoney(data?.income?.mealNormal ?? 0)}</li>
-            <li>Meal OT: {formatMoney(data?.income?.mealOt ?? 0)}</li>
-            <li>Fuel: {formatMoney(data?.income?.fuel ?? 0)}</li>
-          </ul>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow">
-          <h2 className="font-bold mb-4">Expenses</h2>
-          <div>
-            Total: {formatMoney(data?.expenses?.totalExpenses ?? 0)}
+      {/* ===== BURN RATE ===== */}
+      <div className="card space-y-3">
+        <div className="flex justify-between">
+          <div className="font-semibold">Burn Rate</div>
+          <div className="text-sm">
+            {metrics.burnRatePercent.toFixed(1)}%
           </div>
         </div>
 
+        <div className="progress-track">
+          <div
+            className="progress-fill"
+            style={{
+              width: `${metrics.burnRatePercent}%`,
+              backgroundColor: burnColor
+            }}
+          />
+        </div>
+      </div>
+
+      {/* ===== OT INSIGHT ===== */}
+      <div className="card space-y-2">
+        <div className="font-semibold">OT Insight</div>
+
+        <div className="text-muted">
+          OT Pay: {formatMoney(metrics.otPay)}
+        </div>
+
+        <div className="text-muted">
+          Net Balance without OT: {formatMoney(metrics.netWithoutOT)}
+        </div>
       </div>
 
     </div>
   );
 }
 
-function Card({ title, value }) {
+function StatCard({ title, value }) {
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow">
-      <div className="text-sm text-gray-500 dark:text-gray-400">
-        {title}
-      </div>
-      <div className="text-2xl font-semibold mt-2">
-        {formatMoney(value)}
-      </div>
+    <div className="card">
+      <div className="text-muted text-sm">{title}</div>
+      <div className="text-xl font-semibold mt-2">{value}</div>
     </div>
   );
 }

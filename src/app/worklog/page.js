@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE } from "@/config/api";
+import { apiGet, apiPost } from "@/config/api";
 import { getToday, getCurrentPayMonth } from "@/lib/date";
 import Input from "@/components/ui/Input";
 
 export default function WorklogPage() {
-
   const [payMonth, setPayMonth] = useState(getCurrentPayMonth());
   const [worklogs, setWorklogs] = useState([]);
-
   const [loadingList, setLoadingList] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -19,36 +17,25 @@ export default function WorklogPage() {
     holiday_hours: "",
     ot_evening_1_5x: "",
     ot_evening_3x: "",
-    note: ""
+    note: "",
   });
 
   // ======================
-  // LOAD WORKLOGS
+  // LOAD
   // ======================
   const loadWorklogs = async () => {
     try {
       setLoadingList(true);
       setError(null);
 
-      const res = await fetch(
-        `${API_BASE}?action=getWorklogs&payMonth=${payMonth}`
-      );
+      const data = await apiGet({
+        action: "getWorklogs",
+        payMonth,
+      });
 
-      if (!res.ok) throw new Error("Failed to load worklogs");
-
-      const data = await res.json();
-
-      if (data.error) throw new Error(data.error);
-
-      if (Array.isArray(data)) {
-        setWorklogs(data);
-      } else {
-        setWorklogs([]);
-      }
-
+      setWorklogs(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Cannot load worklogs");
+      setError("Cannot load worklogs");
       setWorklogs([]);
     } finally {
       setLoadingList(false);
@@ -59,94 +46,77 @@ export default function WorklogPage() {
     loadWorklogs();
   }, [payMonth]);
 
-  // ======================
-  // FORM CHANGE
-  // ======================
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
 
-  // ======================
-  // ADD WORKLOG
-  // ======================
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
       setSubmitting(true);
-      setError(null);
-
-      const res = await fetch(API_BASE, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "addWorklog",
-          ...form
-        })
+      await apiPost({
+        action: "addWorklog",
+        ...form,
       });
-
-      if (!res.ok) throw new Error("Failed to add worklog");
-
-      const result = await res.json();
-      if (result.error) throw new Error(result.error);
 
       setForm({
         date: getToday(),
         holiday_hours: "",
         ot_evening_1_5x: "",
         ot_evening_3x: "",
-        note: ""
+        note: "",
       });
 
       await loadWorklogs();
-
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Error saving worklog");
+      setError("Error saving worklog");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ======================
-  // DELETE WORKLOG
-  // ======================
   const handleDelete = async (id) => {
     if (!confirm("Delete this worklog entry?")) return;
 
     try {
       setSubmitting(true);
-      setError(null);
-
-      const res = await fetch(API_BASE, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "deleteWorklog",
-          id
-        })
+      await apiPost({
+        action: "deleteWorklog",
+        id,
       });
-
-      if (!res.ok) throw new Error("Failed to delete worklog");
-
-      const result = await res.json();
-      if (result.error) throw new Error(result.error);
-
       await loadWorklogs();
-
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Error deleting worklog");
+      setError("Error deleting worklog");
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div className="space-y-8">
+  const totalHoliday = worklogs.reduce(
+    (sum, w) => sum + (Number(w.holiday_hours) || 0),
+    0
+  );
 
+  const totalOT15 = worklogs.reduce(
+    (sum, w) => sum + (Number(w.ot15) || 0),
+    0
+  );
+
+  const totalOT3 = worklogs.reduce(
+    (sum, w) => sum + (Number(w.ot3) || 0),
+    0
+  );
+
+  return (
+    <div className="space-y-8 pb-20 md:pb-0">
       <h1 className="text-2xl font-bold">Worklog</h1>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <div className="error-banner">
           {error}
         </div>
       )}
@@ -161,9 +131,11 @@ export default function WorklogPage() {
         />
       </div>
 
-      {/* Add Form */}
-      <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4">
-
+      {/* FORM CARD */}
+      <form
+        onSubmit={handleSubmit}
+        className="form-card grid md:grid-cols-2 gap-4"
+      >
         <Input
           type="date"
           name="date"
@@ -217,57 +189,58 @@ export default function WorklogPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="col-span-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="col-span-full btn-submit"
         >
           {submitting ? "Saving..." : "Add Worklog"}
         </button>
       </form>
 
-      {/* Loading List */}
-      {loadingList && (
-        <div className="text-center text-gray-500">
-          Loading...
-        </div>
-      )}
-
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead className="border-b bg-gray-50 dark:bg-gray-800">
-            <tr className="text-left">
-              <th className="py-2 px-2">Date</th>
-              <th className="py-2 px-2 text-right">Holiday</th>
-              <th className="py-2 px-2 text-right">OT 1.5x</th>
-              <th className="py-2 px-2 text-right">OT 3x</th>
-              <th className="py-2 px-2">Note</th>
-              <th className="py-2 px-2 text-right"></th>
+      {/* TABLE CARD */}
+      <div className="card-overflow">
+        <table className="w-full text-sm">
+          <thead className="table-head">
+            <tr>
+              <th className="py-3 px-4 text-left">Date</th>
+              <th className="py-3 px-4 text-right">Holiday</th>
+              <th className="py-3 px-4 text-right">OT 1.5x</th>
+              <th className="py-3 px-4 text-right">OT 3x</th>
+              <th className="py-3 px-4 text-left">Note</th>
+              <th className="py-3 px-4 text-right"></th>
             </tr>
           </thead>
 
           <tbody>
             {!loadingList && worklogs.length === 0 && (
               <tr>
-                <td colSpan="6" className="py-4 text-center text-gray-500">
+                <td colSpan="6" className="py-6 text-center text-subtle">
                   No worklogs found for this period
                 </td>
               </tr>
             )}
 
-            {worklogs.map(item => (
-              <tr key={item.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                <td className="py-2 px-2">{item.date}</td>
-                <td className="py-2 px-2 text-right">{item.holiday_hours || 0}</td>
-                <td className="py-2 px-2 text-right">{item.ot15 || 0}</td>
-                <td className="py-2 px-2 text-right">{item.ot3 || 0}</td>
-                <td className="py-2 px-2 text-gray-600 dark:text-gray-400">
+            {worklogs.map((item) => (
+              <tr
+                key={item.id}
+                className="table-row"
+              >
+                <td className="py-3 px-4">{item.date}</td>
+                <td className="py-3 px-4 text-right">
+                  {item.holiday_hours || 0}
+                </td>
+                <td className="py-3 px-4 text-right">
+                  {item.ot15 || 0}
+                </td>
+                <td className="py-3 px-4 text-right">
+                  {item.ot3 || 0}
+                </td>
+                <td className="py-3 px-4 text-subtle">
                   {item.note || "-"}
                 </td>
-                <td className="py-2 px-2 text-right">
+                <td className="py-3 px-4 text-right">
                   <button
-                    type="button"
                     onClick={() => handleDelete(item.id)}
                     disabled={submitting}
-                    className="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    className="btn-danger"
                   >
                     Delete
                   </button>
@@ -276,38 +249,36 @@ export default function WorklogPage() {
             ))}
           </tbody>
         </table>
-      </div>
 
-      {/* Summary */}
-      {worklogs.length > 0 && (
-        <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <div className="text-gray-500 dark:text-gray-400">Total Days</div>
-              <div className="font-semibold">{worklogs.length}</div>
-            </div>
-            <div>
-              <div className="text-gray-500 dark:text-gray-400">Holiday Hours</div>
-              <div className="font-semibold">
-                {worklogs.reduce((sum, w) => sum + (Number(w.holiday_hours) || 0), 0).toFixed(2)}
+        {worklogs.length > 0 && (
+          <div className="table-footer p-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <div className="text-subtle">Total Days</div>
+                <div className="font-semibold">{worklogs.length}</div>
               </div>
-            </div>
-            <div>
-              <div className="text-gray-500 dark:text-gray-400">OT 1.5x Hours</div>
-              <div className="font-semibold">
-                {worklogs.reduce((sum, w) => sum + (Number(w.ot15) || 0), 0).toFixed(2)}
+              <div>
+                <div className="text-subtle">Holiday Hours</div>
+                <div className="font-semibold">
+                  {totalHoliday.toFixed(2)}
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-gray-500 dark:text-gray-400">OT 3x Hours</div>
-              <div className="font-semibold">
-                {worklogs.reduce((sum, w) => sum + (Number(w.ot3) || 0), 0).toFixed(2)}
+              <div>
+                <div className="text-subtle">OT 1.5x</div>
+                <div className="font-semibold">
+                  {totalOT15.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-subtle">OT 3x</div>
+                <div className="font-semibold">
+                  {totalOT3.toFixed(2)}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
+        )}
+      </div>
     </div>
   );
 }

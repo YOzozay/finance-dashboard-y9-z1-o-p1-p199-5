@@ -10,12 +10,15 @@ export default function Sidebar() {
     { href: "/", label: "Dashboard" },
     { href: "/worklog", label: "Worklog" },
     { href: "/expenses", label: "Expenses" },
+    { href: "/debt", label: "Debt" },
+    { href: "/credit", label: "Credit"},
     { href: "/fixed", label: "Fixed" },
     { href: "/settings", label: "Settings" },
+    
   ];
 
   return (
-    <div className="h-full p-6 bg-white dark:bg-[#0f172a] border-r border-gray-200 dark:border-gray-800">
+    <div className="h-full p-6 bg-[var(--color-bg-nav)] border-r border-[var(--color-border-nav)]">
       <h1 className="text-xl font-bold mb-6">Finance</h1>
 
       <nav className="space-y-2">
@@ -27,8 +30,8 @@ export default function Sidebar() {
               href={item.href}
               className={`block px-4 py-2 rounded-lg transition ${
                 active
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
-                  : "hover:bg-gray-200 dark:hover:bg-gray-800"
+                  ? "nav-link-active"
+                  : "nav-link-inactive"
               }`}
             >
               {item.label}

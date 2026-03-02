@@ -27,23 +27,32 @@ export default function RootLayout({ children }) {
         />
       </head>
 
-      <body className="bg-gray-100 dark:bg-[#0f172a] text-gray-900 dark:text-gray-100">
+      <body className="bg-[var(--color-bg-page)] text-[var(--color-text-primary)]">
 
         <div className="flex min-h-screen">
 
-          <div className="hidden md:block w-64 border-r border-gray-200 dark:border-gray-800">
+          {/* Sidebar (Desktop) */}
+          <div className="hidden md:block w-64 border-r border-[var(--color-border-nav)]">
             <Sidebar />
           </div>
 
-          <main className="flex-1 p-6 md:p-10 pb-24 md:pb-10 relative">
-            <div className="absolute top-6 right-6">
+          {/* Main Column */}
+          <div className="flex-1 flex flex-col">
+
+            {/* Top Bar */}
+            <div className="flex justify-end px-6 md:px-10 pt-6">
               <ThemeToggle />
             </div>
-            {children}
-          </main>
 
+            {/* Page Content */}
+            <main className="flex-1 px-6 md:px-10 pb-24 md:pb-10">
+              {children}
+            </main>
+
+          </div>
         </div>
 
+        {/* Bottom Nav (Mobile) */}
         <div className="md:hidden fixed bottom-0 left-0 right-0">
           <BottomNav />
         </div>
