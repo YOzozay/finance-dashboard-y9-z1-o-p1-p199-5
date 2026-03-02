@@ -239,6 +239,19 @@
     color: var(--color-text-subtle);
   }
 
+  /* ---- Bottom nav helpers ---- */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   /* ---- Progress bar ---- */
   .progress-track {
     width: 100%;
