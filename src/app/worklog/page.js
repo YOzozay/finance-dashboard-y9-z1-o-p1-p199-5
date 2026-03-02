@@ -9,7 +9,9 @@ export default function WorklogPage() {
 
   const [payMonth, setPayMonth] = useState(getCurrentPayMonth());
   const [worklogs, setWorklogs] = useState([]);
-  const [loading, setLoading] = useState(false);
+
+  const [loadingList, setLoadingList] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
   const [form, setForm] = useState({
@@ -25,27 +27,22 @@ export default function WorklogPage() {
   // ======================
   const loadWorklogs = async () => {
     try {
-      setLoading(true);
+      setLoadingList(true);
       setError(null);
 
       const res = await fetch(
         `${API_BASE}?action=getWorklogs&payMonth=${payMonth}`
       );
 
-      if (!res.ok) {
-        throw new Error("Failed to load worklogs");
-      }
+      if (!res.ok) throw new Error("Failed to load worklogs");
 
       const data = await res.json();
 
-      if (data.error) {
-        throw new Error(data.error);
-      }
+      if (data.error) throw new Error(data.error);
 
       if (Array.isArray(data)) {
         setWorklogs(data);
       } else {
-        console.error("Invalid worklogs response:", data);
         setWorklogs([]);
       }
 
@@ -54,7 +51,7 @@ export default function WorklogPage() {
       setError(err.message || "Cannot load worklogs");
       setWorklogs([]);
     } finally {
-      setLoading(false);
+      setLoadingList(false);
     }
   };
 
@@ -70,13 +67,13 @@ export default function WorklogPage() {
   };
 
   // ======================
-  // ADD WORKLOG (ไม่มี headers)
+  // ADD WORKLOG
   // ======================
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
-      setLoading(true);
+      setSubmitting(true);
       setError(null);
 
       const res = await fetch(API_BASE, {
@@ -87,17 +84,11 @@ export default function WorklogPage() {
         })
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to add worklog");
-      }
+      if (!res.ok) throw new Error("Failed to add worklog");
 
       const result = await res.json();
+      if (result.error) throw new Error(result.error);
 
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      // Reset form
       setForm({
         date: getToday(),
         holiday_hours: "",
@@ -106,26 +97,24 @@ export default function WorklogPage() {
         note: ""
       });
 
-      // Reload data
       await loadWorklogs();
 
     } catch (err) {
       console.error(err);
       setError(err.message || "Error saving worklog");
-      alert("Error saving worklog: " + err.message);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   // ======================
-  // DELETE WORKLOG (ไม่มี headers)
+  // DELETE WORKLOG
   // ======================
   const handleDelete = async (id) => {
     if (!confirm("Delete this worklog entry?")) return;
 
     try {
-      setLoading(true);
+      setSubmitting(true);
       setError(null);
 
       const res = await fetch(API_BASE, {
@@ -136,25 +125,18 @@ export default function WorklogPage() {
         })
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to delete worklog");
-      }
+      if (!res.ok) throw new Error("Failed to delete worklog");
 
       const result = await res.json();
+      if (result.error) throw new Error(result.error);
 
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      // Reload data
       await loadWorklogs();
 
     } catch (err) {
       console.error(err);
       setError(err.message || "Error deleting worklog");
-      alert("Error deleting worklog: " + err.message);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -163,7 +145,6 @@ export default function WorklogPage() {
 
       <h1 className="text-2xl font-bold">Worklog</h1>
 
-      {/* Error Message */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           {error}
@@ -176,23 +157,23 @@ export default function WorklogPage() {
           type="month"
           value={payMonth}
           onChange={(e) => setPayMonth(e.target.value)}
-          disabled={loading}
+          disabled={submitting}
         />
       </div>
 
       {/* Add Form */}
       <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4">
 
-        <Input 
-          type="date" 
+        <Input
+          type="date"
           name="date"
           value={form.date}
           onChange={handleChange}
-          disabled={loading}
+          disabled={submitting}
           required
         />
 
-        <Input 
+        <Input
           type="number"
           step="0.01"
           min="0"
@@ -200,10 +181,10 @@ export default function WorklogPage() {
           placeholder="Holiday Hours"
           value={form.holiday_hours}
           onChange={handleChange}
-          disabled={loading}
+          disabled={submitting}
         />
 
-        <Input 
+        <Input
           type="number"
           step="0.01"
           min="0"
@@ -211,10 +192,10 @@ export default function WorklogPage() {
           placeholder="OT Evening 1.5x"
           value={form.ot_evening_1_5x}
           onChange={handleChange}
-          disabled={loading}
+          disabled={submitting}
         />
 
-        <Input 
+        <Input
           type="number"
           step="0.01"
           min="0"
@@ -222,7 +203,7 @@ export default function WorklogPage() {
           placeholder="OT Evening 3x"
           value={form.ot_evening_3x}
           onChange={handleChange}
-          disabled={loading}
+          disabled={submitting}
         />
 
         <Input
@@ -230,20 +211,20 @@ export default function WorklogPage() {
           placeholder="Note"
           value={form.note}
           onChange={handleChange}
-          disabled={loading}
+          disabled={submitting}
         />
 
-        <button 
+        <button
           type="submit"
-          disabled={loading}
+          disabled={submitting}
           className="col-span-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          {loading ? "Saving..." : "Add Worklog"}
+          {submitting ? "Saving..." : "Add Worklog"}
         </button>
       </form>
 
-      {/* Loading State */}
-      {loading && (
+      {/* Loading List */}
+      {loadingList && (
         <div className="text-center text-gray-500">
           Loading...
         </div>
@@ -264,7 +245,7 @@ export default function WorklogPage() {
           </thead>
 
           <tbody>
-            {worklogs.length === 0 && !loading && (
+            {!loadingList && worklogs.length === 0 && (
               <tr>
                 <td colSpan="6" className="py-4 text-center text-gray-500">
                   No worklogs found for this period
@@ -274,30 +255,18 @@ export default function WorklogPage() {
 
             {worklogs.map(item => (
               <tr key={item.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                <td className="py-2 px-2">
-                  {item.date}
-                </td>
-
-                <td className="py-2 px-2 text-right">
-                  {item.holiday_hours || 0}
-                </td>
-
-                <td className="py-2 px-2 text-right">
-                  {item.ot15 || 0}
-                </td>
-
-                <td className="py-2 px-2 text-right">
-                  {item.ot3 || 0}
-                </td>
-
+                <td className="py-2 px-2">{item.date}</td>
+                <td className="py-2 px-2 text-right">{item.holiday_hours || 0}</td>
+                <td className="py-2 px-2 text-right">{item.ot15 || 0}</td>
+                <td className="py-2 px-2 text-right">{item.ot3 || 0}</td>
                 <td className="py-2 px-2 text-gray-600 dark:text-gray-400">
                   {item.note || "-"}
                 </td>
-
                 <td className="py-2 px-2 text-right">
                   <button
+                    type="button"
                     onClick={() => handleDelete(item.id)}
-                    disabled={loading}
+                    disabled={submitting}
                     className="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed"
                   >
                     Delete

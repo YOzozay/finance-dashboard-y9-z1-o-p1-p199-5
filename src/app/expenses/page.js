@@ -8,8 +8,16 @@ import { getToday, getCurrentPayMonth } from "@/lib/date";
 
 export default function ExpensesPage() {
 
-  const [month, setMonth] = useState(getCurrentPayMonth());
+  const [payMonth, setPayMonth] = useState(getCurrentPayMonth());
   const [expenses, setExpenses] = useState([]);
+
+  const [categories, setCategories] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+
+  const [loadingList, setLoadingList] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
   const [form, setForm] = useState({
     date: getToday(),
     category: "",
@@ -19,32 +27,56 @@ export default function ExpensesPage() {
   });
 
   // ======================
+  // LOAD META (Dropdown Data)
+  // ======================
+  useEffect(() => {
+    fetch(`${API_BASE}?action=getExpenseMeta`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.categories) setCategories(data.categories);
+        if (data.paymentMethods) setPaymentMethods(data.paymentMethods);
+      })
+      .catch(err => {
+        console.error("Meta load error:", err);
+      });
+  }, []);
+
+  // ======================
   // LOAD EXPENSES
   // ======================
   const loadExpenses = async () => {
     try {
+      setLoadingList(true);
+      setError(null);
+
       const res = await fetch(
-        `${API_BASE}?action=getExpenses&payMonth=${month}`
+        `${API_BASE}?action=getExpenses&payMonth=${payMonth}`
       );
 
+      if (!res.ok) throw new Error("Failed to load expenses");
+
       const data = await res.json();
+
+      if (data.error) throw new Error(data.error);
 
       if (Array.isArray(data)) {
         setExpenses(data);
       } else {
-        console.error("Invalid expenses response:", data);
         setExpenses([]);
       }
 
     } catch (err) {
       console.error(err);
+      setError(err.message || "Cannot load expenses");
       setExpenses([]);
+    } finally {
+      setLoadingList(false);
     }
   };
 
   useEffect(() => {
     loadExpenses();
-  }, [month]);
+  }, [payMonth]);
 
   // ======================
   // FORM CHANGE
@@ -60,14 +92,21 @@ export default function ExpensesPage() {
     e.preventDefault();
 
     try {
-      await fetch(API_BASE, {
-        method: "POST",
+      setSubmitting(true);
+      setError(null);
 
+      const res = await fetch(API_BASE, {
+        method: "POST",
         body: JSON.stringify({
           action: "addExpense",
           ...form
         })
       });
+
+      if (!res.ok) throw new Error("Failed to add expense");
+
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
 
       setForm({
         date: getToday(),
@@ -77,11 +116,13 @@ export default function ExpensesPage() {
         note: ""
       });
 
-      loadExpenses();
+      await loadExpenses();
 
     } catch (err) {
       console.error(err);
-      alert("Error saving expense");
+      setError(err.message || "Error saving expense");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -92,45 +133,59 @@ export default function ExpensesPage() {
     if (!confirm("Delete this expense?")) return;
 
     try {
-      await fetch(API_BASE, {
-        method: "POST",
+      setSubmitting(true);
+      setError(null);
 
+      const res = await fetch(API_BASE, {
+        method: "POST",
         body: JSON.stringify({
           action: "deleteExpense",
           id
         })
       });
 
-      loadExpenses();
+      if (!res.ok) throw new Error("Failed to delete expense");
+
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+
+      await loadExpenses();
 
     } catch (err) {
       console.error(err);
-      alert("Error deleting expense");
+      setError(err.message || "Error deleting expense");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // ======================
-  // TOTAL SAFE CALC
-  // ======================
-  const total = Array.isArray(expenses)
-    ? expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0)
-    : 0;
+  const total = expenses.reduce(
+    (sum, e) => sum + (Number(e.amount) || 0),
+    0
+  );
 
   return (
     <div className="space-y-8">
 
       <h1 className="text-2xl font-bold">Expenses</h1>
 
-      {/* FILTER */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+
+      {/* Month Selector */}
       <div className="max-w-xs">
         <Input
           type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
+          value={payMonth}
+          onChange={(e) => setPayMonth(e.target.value)}
+          disabled={submitting}
         />
       </div>
 
-      {/* ADD FORM */}
+      {/* Add Form */}
       <form onSubmit={handleAdd} className="grid md:grid-cols-2 gap-4">
 
         <Input
@@ -138,72 +193,109 @@ export default function ExpensesPage() {
           name="date"
           value={form.date}
           onChange={handleChange}
+          disabled={submitting}
           required
         />
 
-        <Input
+        {/* Category Dropdown */}
+        <select
           name="category"
-          placeholder="Category"
           value={form.category}
           onChange={handleChange}
           required
-        />
+          disabled={submitting}
+          className="border rounded px-3 py-2"
+        >
+          <option value="">Select category</option>
+          {categories.map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
 
         <Input
           type="number"
+          step="0.01"
+          min="0"
           name="amount"
           placeholder="Amount"
           value={form.amount}
           onChange={handleChange}
+          disabled={submitting}
           required
         />
 
-        <Input
+        {/* Payment Dropdown */}
+        <select
           name="payment_method"
-          placeholder="Payment Method"
           value={form.payment_method}
           onChange={handleChange}
-        />
+          disabled={submitting}
+          className="border rounded px-3 py-2"
+        >
+          <option value="">Select payment method</option>
+          {paymentMethods.map(p => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
 
         <Input
           name="note"
           placeholder="Note"
           value={form.note}
           onChange={handleChange}
+          disabled={submitting}
         />
 
         <button
           type="submit"
-          className="col-span-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+          disabled={submitting}
+          className="col-span-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition disabled:bg-gray-400"
         >
-          Add Expense
+          {submitting ? "Saving..." : "Add Expense"}
         </button>
       </form>
 
-      {/* TABLE */}
+      {/* Loading */}
+      {loadingList && (
+        <div className="text-center text-gray-500">
+          Loading...
+        </div>
+      )}
+
+      {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b">
+        <table className="w-full text-sm border-collapse">
+          <thead className="border-b bg-gray-50 dark:bg-gray-800">
             <tr>
-              <th className="text-left py-2">Date</th>
-              <th className="text-left py-2">Category</th>
-              <th className="text-right py-2">Amount</th>
-              <th></th>
+              <th className="py-2 px-2 text-left">Date</th>
+              <th className="py-2 px-2 text-left">Category</th>
+              <th className="py-2 px-2 text-right">Amount</th>
+              <th className="py-2 px-2 text-right"></th>
             </tr>
           </thead>
 
           <tbody>
+            {!loadingList && expenses.length === 0 && (
+              <tr>
+                <td colSpan="4" className="py-4 text-center text-gray-500">
+                  No expenses found for this period
+                </td>
+              </tr>
+            )}
+
             {expenses.map(item => (
-              <tr key={item.id} className="border-b">
-                <td className="py-2">{item.date}</td>
+              <tr key={item.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                <td className="py-2 px-2">{item.date}</td>
                 <td>{item.category}</td>
                 <td className="text-right">
                   {formatMoney(item.amount)}
                 </td>
                 <td className="text-right">
                   <button
+                    type="button"
                     onClick={() => handleDelete(item.id)}
-                    className="text-red-500 hover:text-red-700"
+                    disabled={submitting}
+                    className="text-red-500 hover:text-red-700 disabled:text-gray-400"
                   >
                     Delete
                   </button>
@@ -214,9 +306,12 @@ export default function ExpensesPage() {
         </table>
       </div>
 
-      <div className="text-right font-semibold">
-        Total: {formatMoney(total)}
-      </div>
+      {/* Total */}
+      {expenses.length > 0 && (
+        <div className="text-right font-semibold">
+          Total: {formatMoney(total)}
+        </div>
+      )}
 
     </div>
   );
