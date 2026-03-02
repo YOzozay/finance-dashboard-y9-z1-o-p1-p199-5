@@ -1,144 +1,124 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiGet, apiPost } from "@/config/api";
 import { formatMoney } from "@/lib/format";
 
-export default function InstallmentPage() {
+export default function InstallmentsPage() {
+  const router = useRouter();
   const [installments, setInstallments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [payingId, setPayingId] = useState(null);
-  const [error, setError] = useState(null);
 
   const load = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const data = await apiGet({ action: "getInstallments" });
-      setInstallments(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError("Cannot load installments");
-    } finally {
-      setLoading(false);
-    }
+    const data = await apiGet({ action: "getInstallments" });
+    setInstallments(data);
+    setLoading(false);
   };
 
   useEffect(() => {
     load();
   }, []);
 
-  const handlePay = async (inst) => {
-    try {
-      setPayingId(inst.id);
+  const handleCancel = async (txId) => {
+    if (!confirm("Cancel this transaction?")) return;
 
-      await apiPost({
-        action: "payCreditInstallment",
-        installment_id: inst.id,
-      });
+    await apiPost({
+      action: "cancelCreditTransaction",
+      transaction_id: txId,
+    });
 
-      await load();
-    } catch (err) {
-      alert("Payment failed");
-    } finally {
-      setPayingId(null);
-    }
+    await load();
   };
 
   if (loading) return <div className="p-6">Loading...</div>;
-  if (error) return <div className="p-6 text-[var(--color-danger)]">{error}</div>;
 
-  const unpaid = installments.filter(i => i.status === "unpaid");
-  const paid = installments.filter(i => i.status === "paid");
+  const grouped = {};
 
-  const totalUnpaid = unpaid.reduce(
-    (sum, i) => sum + (Number(i.amount) || 0),
-    0
-  );
+  installments.forEach(inst => {
+    if (!grouped[inst.transaction_id]) {
+      grouped[inst.transaction_id] = [];
+    }
+    grouped[inst.transaction_id].push(inst);
+  });
 
   return (
-    <div className="space-y-8 pb-20 md:pb-0">
-      <h1 className="text-2xl font-bold">Installments</h1>
+    <div className="space-y-6 pb-20 md:pb-0">
 
-      {/* Summary */}
-      <div className="card">
-        <div className="text-sm text-subtle">
-          Total Unpaid
-        </div>
-        <div className="text-xl font-semibold mt-2">
-          {formatMoney(totalUnpaid)}
-        </div>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Manage Installments</h1>
+        <button
+          onClick={() => router.back()}
+          className="btn-secondary-sm"
+        >
+          ← Back
+        </button>
       </div>
 
-      {/* Unpaid Section */}
-      <div className="card space-y-4">
-        <div className="font-semibold">
-          Unpaid Installments
-        </div>
+      {Object.entries(grouped).map(([txId, items]) => {
 
-        {unpaid.length === 0 && (
-          <div className="text-subtle">
-            No unpaid installments
-          </div>
-        )}
+        const first = items[0];
 
-        {unpaid.map(inst => (
-          <div
-            key={inst.id}
-            className="flex justify-between items-center border-t pt-3"
-          >
-            <div>
-              <div className="font-medium">
-                Due: {inst.due_date}
-              </div>
-              <div className="text-subtle text-sm">
-                Installment #{inst.installment_no}
-              </div>
-            </div>
+        const total = first.total_amount;
 
-            <div className="flex items-center gap-4">
-              <div className="font-medium">
-                {formatMoney(inst.amount)}
+        const paid = items.filter(i => i.status === "paid").length;
+        const remaining = items.filter(i => i.status === "unpaid").length;
+
+        const unpaidAmount = items
+          .filter(i => i.status === "unpaid")
+          .reduce((sum, i) => sum + i.amount, 0);
+
+        const progress =
+          first.months > 0
+            ? (paid / first.months) * 100
+            : 0;
+
+        return (
+          <div key={txId} className="card space-y-4">
+
+            <div className="flex justify-between">
+
+              <div>
+                <div className="font-semibold text-lg">
+                  {first.description}
+                </div>
+
+                <div className="text-sm text-subtle">
+                  {first.card_name}
+                </div>
+
+                <div className="text-sm text-subtle">
+                  {paid}/{first.months} paid
+                </div>
               </div>
 
               <button
-                className="btn-primary-sm"
-                disabled={payingId === inst.id}
-                onClick={() => handlePay(inst)}
+                onClick={() => handleCancel(txId)}
+                className="btn-danger-sm"
               >
-                {payingId === inst.id ? "Processing..." : "Pay"}
+                Cancel
               </button>
-            </div>
-          </div>
-        ))}
-      </div>
 
-      {/* Paid Section */}
-      <div className="card space-y-4">
-        <div className="font-semibold">
-          Paid Installments
-        </div>
-
-        {paid.length === 0 && (
-          <div className="text-subtle">
-            No paid installments
-          </div>
-        )}
-
-        {paid.map(inst => (
-          <div
-            key={inst.id}
-            className="flex justify-between border-t pt-3 text-subtle"
-          >
-            <div>
-              {inst.due_date} — Installment #{inst.installment_no}
             </div>
-            <div>
-              {formatMoney(inst.amount)}
+
+            <div className="progress-track">
+              <div
+                className="progress-fill"
+                style={{ width: `${progress}%` }}
+              />
             </div>
+
+            <div className="text-sm text-subtle">
+              Total: {formatMoney(total)}
+            </div>
+
+            <div className="text-sm text-subtle">
+              Remaining: {formatMoney(unpaidAmount)}
+            </div>
+
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }

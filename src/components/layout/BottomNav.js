@@ -7,13 +7,16 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   const items = [
-    { href: "/", label: "Home" },
-    { href: "/worklog", label: "OT" },
-    { href: "/expenses", label: "Expense" },
+    { href: "/", label: "Dashboard" },
+    { href: "/payments", label: "Payments" },
+    { href: "/worklog", label: "Worklog" },
+    { href: "/expenses", label: "Expenses" },
     { href: "/debt", label: "Debt" },
-    { href: "/credit", label: "Credit"},
+    { href: "/credit", label: "Credit" },
     { href: "/fixed", label: "Fixed" },
+    { href: "/settings", label: "Settings" },
   ];
+
 
   return (
     <div className="bg-[var(--color-bg-nav)] border-t border-[var(--color-border-nav)]">

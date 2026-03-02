@@ -8,13 +8,13 @@ export default function Sidebar() {
 
   const items = [
     { href: "/", label: "Dashboard" },
+    { href: "/payments", label: "Payments" },
     { href: "/worklog", label: "Worklog" },
     { href: "/expenses", label: "Expenses" },
     { href: "/debt", label: "Debt" },
-    { href: "/credit", label: "Credit"},
+    { href: "/credit", label: "Credit" },
     { href: "/fixed", label: "Fixed" },
     { href: "/settings", label: "Settings" },
-    
   ];
 
   return (

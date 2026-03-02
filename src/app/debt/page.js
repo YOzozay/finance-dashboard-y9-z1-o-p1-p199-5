@@ -11,8 +11,14 @@ export default function DebtPage() {
   const [error, setError] = useState(null);
   const [payingId, setPayingId] = useState(null);
 
-  // เก็บ extra amount แยกตาม debt.id
   const [extraMap, setExtraMap] = useState({});
+
+  const [newDebt, setNewDebt] = useState({
+    name: "",
+    total_amount: "",
+    monthly_due: "",
+    due_day: 1,
+  });
 
   const load = async () => {
     try {
@@ -24,7 +30,6 @@ export default function DebtPage() {
       if (Array.isArray(data)) {
         setDebts(data);
 
-        // initialize extra amount = 2000 ต่อหนี้ (ครั้งแรกเท่านั้น)
         setExtraMap((prev) => {
           const updated = { ...prev };
           data.forEach((d) => {
@@ -47,6 +52,46 @@ export default function DebtPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const handleAddDebt = async () => {
+    if (!newDebt.name || !newDebt.total_amount) {
+      alert("Please fill required fields");
+      return;
+    }
+
+    try {
+      await apiPost({
+        action: "addDebt",
+        ...newDebt,
+      });
+
+      setNewDebt({
+        name: "",
+        total_amount: "",
+        monthly_due: "",
+        due_day: 1,
+      });
+
+      await load();
+    } catch (err) {
+      alert(err.message || "Add failed");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this debt?")) return;
+
+    try {
+      await apiPost({
+        action: "deleteDebt",
+        id,
+      });
+
+      await load();
+    } catch {
+      alert("Delete failed");
+    }
+  };
 
   const handlePay = async (debt) => {
     const amount = prompt("Payment amount:");
@@ -78,24 +123,110 @@ export default function DebtPage() {
 
   if (loading) return <div className="p-6">Loading...</div>;
   if (error)
-    return (
-      <div className="p-6 text-[var(--color-danger)]">
-        {error}
-      </div>
-    );
+    return <div className="p-6 text-[var(--color-danger)]">{error}</div>;
 
   return (
-    <div className="space-y-6 pb-20 md:pb-0">
+    <div className="space-y-8 pb-20 md:pb-0">
       <h1 className="text-2xl font-bold">Debt Manager</h1>
 
+      {/* ===== ADD FORM ===== */}
+      <div className="card space-y-4">
+        <div className="font-semibold">Add Debt</div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">
+              Debt Name
+            </label>
+            <input
+              placeholder="e.g. Car Loan"
+              value={newDebt.name}
+              onChange={(e) =>
+                setNewDebt({ ...newDebt, name: e.target.value })
+              }
+              className="input-base"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">
+              Total Amount
+            </label>
+            <input
+              type="number"
+              placeholder="50000"
+              value={newDebt.total_amount}
+              onChange={(e) =>
+                setNewDebt({
+                  ...newDebt,
+                  total_amount: e.target.value,
+                })
+              }
+              className="input-base"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">
+              Monthly Due
+            </label>
+            <input
+              type="number"
+              placeholder="5000"
+              value={newDebt.monthly_due}
+              onChange={(e) =>
+                setNewDebt({
+                  ...newDebt,
+                  monthly_due: e.target.value,
+                })
+              }
+              className="input-base"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">
+              Due Day (1–31)
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="31"
+              value={newDebt.due_day}
+              onChange={(e) =>
+                setNewDebt({
+                  ...newDebt,
+                  due_day: e.target.value,
+                })
+              }
+              className="input-base"
+            />
+            <div className="text-xs text-subtle">
+              Day of month the payment is due
+            </div>
+          </div>
+
+        </div>
+
+        <button
+          onClick={handleAddDebt}
+          className="btn-primary-sm"
+        >
+          Add Debt
+        </button>
+      </div>
+
+      {/* ===== LIST ===== */}
       {debts.length === 0 && (
         <div className="text-subtle">No debts found</div>
       )}
 
-      <div className="grid gap-4">
+      <div className="grid gap-6">
         {debts.map((d) => {
           const paidAmount =
-            Number(d.total_amount) - Number(d.remaining_amount);
+            Number(d.total_amount) -
+            Number(d.remaining_amount);
 
           const progress =
             d.total_amount > 0
@@ -120,20 +251,17 @@ export default function DebtPage() {
 
           return (
             <div key={d.id} className="card space-y-4">
-              {/* Header */}
+
               <div className="flex justify-between">
                 <div>
                   <div className="font-semibold text-lg">
                     {d.name}
                   </div>
-
                   <div className="text-sm text-subtle">
                     Due every {d.due_day}
                   </div>
-
                   <div className="text-sm text-subtle">
-                    Monthly Due:{" "}
-                    {formatMoney(d.monthly_due)}
+                    Monthly Due: {formatMoney(d.monthly_due)}
                   </div>
                 </div>
 
@@ -147,7 +275,6 @@ export default function DebtPage() {
                 </div>
               </div>
 
-              {/* Progress */}
               <div className="space-y-1">
                 <div className="progress-track">
                   <div
@@ -155,13 +282,11 @@ export default function DebtPage() {
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-
                 <div className="text-xs text-subtle">
                   {progress.toFixed(1)}% paid
                 </div>
               </div>
 
-              {/* Projection Section */}
               {d.status !== "closed" && projection && (
                 <div className="border-t pt-4 space-y-3">
                   <div className="text-sm font-semibold">
@@ -172,16 +297,12 @@ export default function DebtPage() {
                     <span className="text-sm text-subtle">
                       Extra per month:
                     </span>
-
                     <input
                       type="number"
                       min="0"
                       value={extraAmount}
                       onChange={(e) =>
-                        handleExtraChange(
-                          d.id,
-                          e.target.value
-                        )
+                        handleExtraChange(d.id, e.target.value)
                       }
                       className="input-base w-32"
                     />
@@ -194,14 +315,12 @@ export default function DebtPage() {
                         {projection.normalMonths} months
                       </span>
                     </div>
-
                     <div>
                       With extra:{" "}
                       <span className="font-medium">
                         {projection.acceleratedMonths} months
                       </span>
                     </div>
-
                     <div className="font-semibold">
                       Saved: {projection.monthsSaved} months
                     </div>
@@ -209,27 +328,36 @@ export default function DebtPage() {
                 </div>
               )}
 
-              {/* Footer */}
               <div className="flex justify-between items-center border-t pt-4">
                 <div className="text-sm text-subtle">
                   Total: {formatMoney(d.total_amount)}
                 </div>
 
-                <button
-                  disabled={
-                    d.status === "closed" ||
-                    payingId === d.id
-                  }
-                  onClick={() => handlePay(d)}
-                  className="btn-primary-sm"
-                >
-                  {d.status === "closed"
-                    ? "Closed"
-                    : payingId === d.id
-                    ? "Processing..."
-                    : "Pay"}
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleDelete(d.id)}
+                    className="btn-danger-sm"
+                  >
+                    Delete
+                  </button>
+
+                  <button
+                    disabled={
+                      d.status === "closed" ||
+                      payingId === d.id
+                    }
+                    onClick={() => handlePay(d)}
+                    className="btn-primary-sm"
+                  >
+                    {d.status === "closed"
+                      ? "Closed"
+                      : payingId === d.id
+                      ? "Processing..."
+                      : "Pay"}
+                  </button>
+                </div>
               </div>
+
             </div>
           );
         })}
