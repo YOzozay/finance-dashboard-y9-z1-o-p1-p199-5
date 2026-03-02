@@ -55,24 +55,44 @@ export default function WorklogPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+
+    const holiday = Number(form.holiday_hours) || 0;
+    const ot15 = Number(form.ot_evening_1_5x) || 0;
+    const ot3 = Number(form.ot_evening_3x) || 0;
+
+    if (holiday < 0 || ot15 < 0 || ot3 < 0) {
+      setError("Hours cannot be negative");
+      return;
+    }
+
+    const tempId = `temp_${Date.now()}`;
+    const optimisticItem = {
+      id: tempId,
+      date: form.date,
+      holiday_hours: holiday,
+      ot15,
+      ot3,
+      note: form.note,
+    };
+
+    setWorklogs((prev) => [optimisticItem, ...prev]);
+    setForm({ date: getToday(), holiday_hours: "", ot_evening_1_5x: "", ot_evening_3x: "", note: "" });
+    setSubmitting(true);
 
     try {
-      setSubmitting(true);
       await apiPost({
         action: "addWorklog",
-        ...form,
+        date: optimisticItem.date,
+        holiday_hours: holiday,
+        ot_evening_1_5x: ot15,
+        ot_evening_3x: ot3,
+        note: optimisticItem.note,
       });
-
-      setForm({
-        date: getToday(),
-        holiday_hours: "",
-        ot_evening_1_5x: "",
-        ot_evening_3x: "",
-        note: "",
-      });
-
       await loadWorklogs();
     } catch (err) {
+      setWorklogs((prev) => prev.filter((w) => w.id !== tempId));
+      setForm({ date: optimisticItem.date, holiday_hours: String(holiday), ot_evening_1_5x: String(ot15), ot_evening_3x: String(ot3), note: optimisticItem.note });
       setError("Error saving worklog");
     } finally {
       setSubmitting(false);
@@ -82,17 +102,14 @@ export default function WorklogPage() {
   const handleDelete = async (id) => {
     if (!confirm("Delete this worklog entry?")) return;
 
+    const snapshot = worklogs.find((w) => w.id === id);
+    setWorklogs((prev) => prev.filter((w) => w.id !== id));
+
     try {
-      setSubmitting(true);
-      await apiPost({
-        action: "deleteWorklog",
-        id,
-      });
-      await loadWorklogs();
+      await apiPost({ action: "deleteWorklog", id });
     } catch (err) {
+      if (snapshot) setWorklogs((prev) => [...prev, snapshot]);
       setError("Error deleting worklog");
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -122,7 +139,8 @@ export default function WorklogPage() {
       )}
 
       {/* Month Selector */}
-      <div className="max-w-xs">
+      <div className="max-w-xs space-y-1">
+        <label className="text-sm font-medium text-muted">Pay Month</label>
         <Input
           type="month"
           value={payMonth}
@@ -136,55 +154,78 @@ export default function WorklogPage() {
         onSubmit={handleSubmit}
         className="form-card grid md:grid-cols-2 gap-4"
       >
-        <Input
-          type="date"
-          name="date"
-          value={form.date}
-          onChange={handleChange}
-          disabled={submitting}
-          required
-        />
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-muted">
+            Date <span className="text-[var(--color-danger)]">*</span>
+          </label>
+          <Input
+            type="date"
+            name="date"
+            value={form.date}
+            onChange={handleChange}
+            disabled={submitting}
+            required
+          />
+        </div>
 
-        <Input
-          type="number"
-          step="0.01"
-          min="0"
-          name="holiday_hours"
-          placeholder="Holiday Hours"
-          value={form.holiday_hours}
-          onChange={handleChange}
-          disabled={submitting}
-        />
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-muted">
+            Holiday Hours
+          </label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            name="holiday_hours"
+            placeholder="0"
+            value={form.holiday_hours}
+            onChange={handleChange}
+            disabled={submitting}
+          />
+        </div>
 
-        <Input
-          type="number"
-          step="0.01"
-          min="0"
-          name="ot_evening_1_5x"
-          placeholder="OT Evening 1.5x"
-          value={form.ot_evening_1_5x}
-          onChange={handleChange}
-          disabled={submitting}
-        />
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-muted">
+            OT Evening 1.5x (hrs)
+          </label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            name="ot_evening_1_5x"
+            placeholder="0"
+            value={form.ot_evening_1_5x}
+            onChange={handleChange}
+            disabled={submitting}
+          />
+        </div>
 
-        <Input
-          type="number"
-          step="0.01"
-          min="0"
-          name="ot_evening_3x"
-          placeholder="OT Evening 3x"
-          value={form.ot_evening_3x}
-          onChange={handleChange}
-          disabled={submitting}
-        />
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-muted">
+            OT Evening 3x (hrs)
+          </label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            name="ot_evening_3x"
+            placeholder="0"
+            value={form.ot_evening_3x}
+            onChange={handleChange}
+            disabled={submitting}
+          />
+        </div>
 
-        <Input
-          name="note"
-          placeholder="Note"
-          value={form.note}
-          onChange={handleChange}
-          disabled={submitting}
-        />
+        <div className="space-y-1 md:col-span-2">
+          <label className="text-sm font-medium text-muted">Note</label>
+          <Input
+            name="note"
+            placeholder="Optional note"
+            value={form.note}
+            onChange={handleChange}
+            disabled={submitting}
+          />
+        </div>
 
         <button
           type="submit"
@@ -239,7 +280,6 @@ export default function WorklogPage() {
                 <td className="py-3 px-4 text-right">
                   <button
                     onClick={() => handleDelete(item.id)}
-                    disabled={submitting}
                     className="btn-danger"
                   >
                     Delete

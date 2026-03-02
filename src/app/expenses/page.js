@@ -80,24 +80,28 @@ export default function ExpensesPage() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
+    setError(null);
+
+    const tempId = `temp_${Date.now()}`;
+    const optimisticItem = {
+      id: tempId,
+      date: form.date,
+      category: form.category,
+      amount: Number(form.amount) || 0,
+      payment_method: form.payment_method,
+      note: form.note,
+    };
+
+    setExpenses((prev) => [optimisticItem, ...prev]);
+    setForm({ date: getToday(), category: "", amount: "", payment_method: "", note: "" });
+    setSubmitting(true);
 
     try {
-      setSubmitting(true);
-      await apiPost({
-        action: "addExpense",
-        ...form,
-      });
-
-      setForm({
-        date: getToday(),
-        category: "",
-        amount: "",
-        payment_method: "",
-        note: "",
-      });
-
+      await apiPost({ action: "addExpense", ...optimisticItem });
       await loadExpenses();
     } catch (err) {
+      setExpenses((prev) => prev.filter((e) => e.id !== tempId));
+      setForm(optimisticItem);
       setError("Error saving expense");
     } finally {
       setSubmitting(false);
@@ -107,17 +111,14 @@ export default function ExpensesPage() {
   const handleDelete = async (id) => {
     if (!confirm("Delete this expense?")) return;
 
+    const snapshot = expenses.find((e) => e.id === id);
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+
     try {
-      setSubmitting(true);
-      await apiPost({
-        action: "deleteExpense",
-        id,
-      });
-      await loadExpenses();
+      await apiPost({ action: "deleteExpense", id });
     } catch (err) {
+      if (snapshot) setExpenses((prev) => [...prev, snapshot]);
       setError("Error deleting expense");
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -137,7 +138,8 @@ export default function ExpensesPage() {
       )}
 
       {/* Month Selector */}
-      <div className="max-w-xs">
+      <div className="max-w-xs space-y-1">
+        <label className="text-sm font-medium text-muted">Pay Month</label>
         <Input
           type="month"
           value={payMonth}
@@ -151,65 +153,89 @@ export default function ExpensesPage() {
         onSubmit={handleAdd}
         className="form-card grid md:grid-cols-2 gap-4"
       >
-        <Input
-          type="date"
-          name="date"
-          value={form.date}
-          onChange={handleChange}
-          disabled={submitting}
-          required
-        />
+        {/* Row 1: Date | Amount */}
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-muted">
+            Date <span className="text-[var(--color-danger)]">*</span>
+          </label>
+          <Input
+            type="date"
+            name="date"
+            value={form.date}
+            onChange={handleChange}
+            disabled={submitting}
+            required
+          />
+        </div>
 
-        <select
-          name="category"
-          value={form.category}
-          onChange={handleChange}
-          required
-          disabled={submitting}
-          className="select-base"
-        >
-          <option value="">Select category</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-muted">
+            Amount (฿) <span className="text-[var(--color-danger)]">*</span>
+          </label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            name="amount"
+            placeholder="0.00"
+            value={form.amount}
+            onChange={handleChange}
+            disabled={submitting}
+            required
+          />
+        </div>
 
-        <Input
-          type="number"
-          step="0.01"
-          min="0"
-          name="amount"
-          placeholder="Amount"
-          value={form.amount}
-          onChange={handleChange}
-          disabled={submitting}
-          required
-        />
+        {/* Row 2: Category | Payment Method */}
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-muted">
+            Category <span className="text-[var(--color-danger)]">*</span>
+          </label>
+          <select
+            name="category"
+            value={form.category}
+            onChange={handleChange}
+            required
+            disabled={submitting}
+            className="select-base"
+          >
+            <option value="">Select category</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <select
-          name="payment_method"
-          value={form.payment_method}
-          onChange={handleChange}
-          disabled={submitting}
-          className="select-base"
-        >
-          <option value="">Select payment method</option>
-          {paymentMethods.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-muted">Payment Method</label>
+          <select
+            name="payment_method"
+            value={form.payment_method}
+            onChange={handleChange}
+            disabled={submitting}
+            className="select-base"
+          >
+            <option value="">Select payment method</option>
+            {paymentMethods.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <Input
-          name="note"
-          placeholder="Note"
-          value={form.note}
-          onChange={handleChange}
-          disabled={submitting}
-        />
+        {/* Row 3: Note (full width) */}
+        <div className="space-y-1 md:col-span-2">
+          <label className="text-sm font-medium text-muted">Note</label>
+          <Input
+            name="note"
+            placeholder="Optional note"
+            value={form.note}
+            onChange={handleChange}
+            disabled={submitting}
+          />
+        </div>
 
         <button
           type="submit"
@@ -257,7 +283,6 @@ export default function ExpensesPage() {
                 <td className="py-3 px-4 text-right">
                   <button
                     onClick={() => handleDelete(item.id)}
-                    disabled={submitting}
                     className="btn-danger"
                   >
                     Delete

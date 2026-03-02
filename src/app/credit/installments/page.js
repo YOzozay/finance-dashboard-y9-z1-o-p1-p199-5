@@ -10,10 +10,19 @@ export default function InstallmentsPage() {
   const [installments, setInstallments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState(null);
+
   const load = async () => {
-    const data = await apiGet({ action: "getInstallments" });
-    setInstallments(data);
-    setLoading(false);
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiGet({ action: "getInstallments" });
+      setInstallments(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError("Cannot load installments");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -21,14 +30,17 @@ export default function InstallmentsPage() {
   }, []);
 
   const handleCancel = async (txId) => {
-    if (!confirm("Cancel this transaction?")) return;
+    if (!confirm("Cancel this transaction? This cannot be undone.")) return;
 
-    await apiPost({
-      action: "cancelCreditTransaction",
-      transaction_id: txId,
-    });
-
-    await load();
+    try {
+      await apiPost({
+        action: "cancelCreditTransaction",
+        transaction_id: txId,
+      });
+      await load();
+    } catch (err) {
+      alert(err.message || "Cancel failed");
+    }
   };
 
   if (loading) return <div className="p-6">Loading...</div>;
@@ -49,11 +61,13 @@ export default function InstallmentsPage() {
         <h1 className="text-2xl font-bold">Manage Installments</h1>
         <button
           onClick={() => router.back()}
-          className="btn-secondary-sm"
+          className="btn-primary-sm"
         >
           ← Back
         </button>
       </div>
+
+      {error && <div className="error-banner">{error}</div>}
 
       {Object.entries(grouped).map(([txId, items]) => {
 
@@ -94,7 +108,7 @@ export default function InstallmentsPage() {
 
               <button
                 onClick={() => handleCancel(txId)}
-                className="btn-danger-sm"
+                className="btn-danger"
               >
                 Cancel
               </button>

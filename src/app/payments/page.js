@@ -15,7 +15,7 @@ export default function PaymentsPage() {
       setLoading(true);
       setError(null);
 
-      const data = await apiGet({ action: "getDuePayments" });
+      const data = await apiPost({ action: "getDuePayments" });
 
       // รองรับทั้ง array และ { data: [...] }
       if (Array.isArray(data)) {
@@ -40,14 +40,16 @@ export default function PaymentsPage() {
   }, []);
 
   const handlePay = async (item) => {
-    let amount = item.amount;
+    let amount = Number(item.amount);
 
-    // installment ไม่ต้องถามจำนวน
     if (item.type !== "installment") {
       const input = prompt("Enter payment amount:", item.amount);
-      if (!input) return;
+      if (input === null || input.trim() === "") return;
       amount = Number(input);
-      if (!amount || amount <= 0) return;
+      if (isNaN(amount) || amount <= 0) {
+        alert("Invalid amount");
+        return;
+      }
     }
 
     try {
@@ -57,11 +59,10 @@ export default function PaymentsPage() {
         action: "processPayment",
         type: item.type,
         source_id: item.source_id,
-        amount: Number(amount),
+        amount,
       });
 
       await load();
-
     } catch (err) {
       alert(err.message || "Payment failed");
     } finally {

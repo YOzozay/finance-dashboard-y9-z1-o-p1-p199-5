@@ -14,29 +14,31 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
       setLoading(true);
 
-      const summaryData = await apiGet({
-        action: "summary",
-        payMonth
-      });
+      try {
+        const [summaryData, debtData, upcomingData] = await Promise.all([
+          apiGet({ action: "summary", payMonth }),
+          apiGet({ action: "getDebts" }),
+          apiGet({ action: "getUpcomingInstallments" }),
+        ]);
 
-      const debtData = await apiGet({
-        action: "getDebts"
-      });
-
-      const upcomingData = await apiGet({
-        action: "getUpcomingInstallments"
-      });
-
-      setSummary(summaryData);
-      setDebts(debtData);
-      setUpcoming(upcomingData || []);
-      setLoading(false);
+        if (cancelled) return;
+        setSummary(summaryData);
+        setDebts(Array.isArray(debtData) ? debtData : []);
+        setUpcoming(Array.isArray(upcomingData) ? upcomingData : []);
+      } catch (err) {
+        if (!cancelled) console.error("Dashboard load error:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
 
     load();
+    return () => { cancelled = true; };
   }, [payMonth]);
 
   if (loading || !summary) {
@@ -159,10 +161,11 @@ function UpcomingInstallments({ data }) {
 
         {data.map(item => {
           const today = new Date();
-          const due = new Date(item.due_date);
-          const diffDays = Math.ceil(
-            (due - today) / (1000 * 60 * 60 * 24)
-          );
+          today.setHours(0, 0, 0, 0);
+          const due = item.due_date ? new Date(item.due_date) : null;
+          const diffDays = due
+            ? Math.ceil((due - today) / (1000 * 60 * 60 * 24))
+            : Infinity;
 
           const urgent =
             diffDays <= 7 ? "var(--color-danger)" : undefined;

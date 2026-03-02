@@ -54,8 +54,21 @@ export default function DebtPage() {
   }, []);
 
   const handleAddDebt = async () => {
-    if (!newDebt.name || !newDebt.total_amount) {
-      alert("Please fill required fields");
+    if (!newDebt.name.trim()) {
+      alert("Please enter a debt name");
+      return;
+    }
+    if (!newDebt.total_amount || Number(newDebt.total_amount) <= 0) {
+      alert("Total amount must be greater than 0");
+      return;
+    }
+    if (!newDebt.monthly_due || Number(newDebt.monthly_due) <= 0) {
+      alert("Monthly due must be greater than 0");
+      return;
+    }
+    const dueDay = Number(newDebt.due_day);
+    if (isNaN(dueDay) || dueDay < 1 || dueDay > 31) {
+      alert("Due day must be between 1 and 31");
       return;
     }
 
@@ -63,6 +76,7 @@ export default function DebtPage() {
       await apiPost({
         action: "addDebt",
         ...newDebt,
+        due_day: dueDay,
       });
 
       setNewDebt({
@@ -94,8 +108,19 @@ export default function DebtPage() {
   };
 
   const handlePay = async (debt) => {
-    const amount = prompt("Payment amount:");
-    if (!amount) return;
+    const input = prompt("Payment amount:", debt.monthly_due);
+    if (input === null || input.trim() === "") return;
+
+    const amount = Number(input);
+    if (isNaN(amount) || amount <= 0) {
+      alert("Invalid amount");
+      return;
+    }
+
+    if (amount > Number(debt.remaining_amount)) {
+      alert(`Amount exceeds remaining balance (${formatMoney(debt.remaining_amount)})`);
+      return;
+    }
 
     try {
       setPayingId(debt.id);
@@ -103,7 +128,7 @@ export default function DebtPage() {
       await apiPost({
         action: "payDebt",
         debt_id: debt.id,
-        amount: Number(amount),
+        amount,
       });
 
       await load();
@@ -136,11 +161,11 @@ export default function DebtPage() {
         <div className="grid md:grid-cols-2 gap-4">
 
           <div className="space-y-1">
-            <label className="text-sm font-medium">
-              Debt Name
+            <label className="text-sm font-medium text-muted">
+              Debt Name <span className="text-[var(--color-danger)]">*</span>
             </label>
             <input
-              placeholder="e.g. Car Loan"
+              placeholder="e.g. Car Loan, Personal Loan"
               value={newDebt.name}
               onChange={(e) =>
                 setNewDebt({ ...newDebt, name: e.target.value })
@@ -150,44 +175,44 @@ export default function DebtPage() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium">
-              Total Amount
+            <label className="text-sm font-medium text-muted">
+              Total Amount (฿) <span className="text-[var(--color-danger)]">*</span>
             </label>
             <input
               type="number"
+              min="0"
+              step="0.01"
               placeholder="50000"
               value={newDebt.total_amount}
               onChange={(e) =>
-                setNewDebt({
-                  ...newDebt,
-                  total_amount: e.target.value,
-                })
+                setNewDebt({ ...newDebt, total_amount: e.target.value })
               }
               className="input-base"
             />
+            <div className="text-xs text-subtle">ยอดหนี้รวมทั้งหมด</div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium">
-              Monthly Due
+            <label className="text-sm font-medium text-muted">
+              Monthly Due (฿) <span className="text-[var(--color-danger)]">*</span>
             </label>
             <input
               type="number"
+              min="0"
+              step="0.01"
               placeholder="5000"
               value={newDebt.monthly_due}
               onChange={(e) =>
-                setNewDebt({
-                  ...newDebt,
-                  monthly_due: e.target.value,
-                })
+                setNewDebt({ ...newDebt, monthly_due: e.target.value })
               }
               className="input-base"
             />
+            <div className="text-xs text-subtle">ยอดที่ต้องจ่ายต่อเดือน</div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium">
-              Due Day (1–31)
+            <label className="text-sm font-medium text-muted">
+              Due Day (1–31) <span className="text-[var(--color-danger)]">*</span>
             </label>
             <input
               type="number"
@@ -195,16 +220,11 @@ export default function DebtPage() {
               max="31"
               value={newDebt.due_day}
               onChange={(e) =>
-                setNewDebt({
-                  ...newDebt,
-                  due_day: e.target.value,
-                })
+                setNewDebt({ ...newDebt, due_day: e.target.value })
               }
               className="input-base"
             />
-            <div className="text-xs text-subtle">
-              Day of month the payment is due
-            </div>
+            <div className="text-xs text-subtle">วันที่ครบกำหนดชำระในแต่ละเดือน</div>
           </div>
 
         </div>
@@ -336,7 +356,7 @@ export default function DebtPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => handleDelete(d.id)}
-                    className="btn-danger-sm"
+                    className="btn-danger"
                   >
                     Delete
                   </button>

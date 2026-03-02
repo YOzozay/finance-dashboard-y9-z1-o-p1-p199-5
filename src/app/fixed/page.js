@@ -136,32 +136,43 @@ export default function FixedPage() {
 
         <form onSubmit={handleSubmit} className="grid gap-4">
 
-          <input
-            className="input-base"
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) =>
-              setForm({ ...form, name: e.target.value })
-            }
-            required
-          />
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-muted">
+              Name <span className="text-[var(--color-danger)]">*</span>
+            </label>
+            <input
+              className="input-base"
+              placeholder="e.g. Internet, Rent"
+              value={form.name}
+              onChange={(e) =>
+                setForm({ ...form, name: e.target.value })
+              }
+              required
+            />
+          </div>
 
-          <input
-            className="input-base"
-            type="number"
-            placeholder="Amount"
-            value={form.amount}
-            onChange={(e) =>
-              setForm({ ...form, amount: e.target.value })
-            }
-            required
-          />
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-muted">
+              Amount (฿) <span className="text-[var(--color-danger)]">*</span>
+            </label>
+            <input
+              className="input-base"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={form.amount}
+              onChange={(e) =>
+                setForm({ ...form, amount: e.target.value })
+              }
+              required
+            />
+          </div>
 
-          {/* Start Date */}
-          <div>
-            <div className="text-sm text-subtle mb-1">
-              Effective From
-            </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-muted">
+              Effective From <span className="text-[var(--color-danger)]">*</span>
+            </label>
             <input
               className="input-base"
               type="date"
@@ -173,11 +184,11 @@ export default function FixedPage() {
             />
           </div>
 
-          {/* End Date */}
-          <div>
-            <div className="text-sm text-subtle mb-1">
-              End Date (optional)
-            </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-muted">
+              End Date{" "}
+              <span className="text-xs font-normal text-subtle">(optional — leave blank if ongoing)</span>
+            </label>
             <input
               className="input-base"
               type="date"
